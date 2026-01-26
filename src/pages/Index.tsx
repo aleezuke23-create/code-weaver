@@ -233,6 +233,7 @@ const Index = () => {
           <TabsContent value="fiados">
             <FiadosManager
               fiados={fiados}
+              services={services}
               onAddFiado={handleAddFiado}
               onUpdateFiado={handleUpdateFiado}
               onDeleteFiado={handleDeleteFiado}

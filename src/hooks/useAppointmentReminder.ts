@@ -33,12 +33,67 @@ function playNotificationSound() {
   }
 }
 
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.log('Este navegador não suporta notificações');
+    return false;
+  }
+
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+
+  return false;
+}
+
+function sendBrowserNotification(title: string, body: string) {
+  if (Notification.permission === 'granted') {
+    const notification = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: 'appointment-reminder',
+      requireInteraction: true,
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    // Auto close after 30 seconds
+    setTimeout(() => notification.close(), 30000);
+  }
+}
+
 export function useAppointmentReminder(
   appointments: Appointment[],
   selectedDate: string,
   currentBarberId: string
 ) {
   const notifiedAppointments = useRef<Set<string>>(new Set());
+  const permissionRequested = useRef(false);
+
+  // Request permission on mount
+  useEffect(() => {
+    if (!permissionRequested.current) {
+      permissionRequested.current = true;
+      requestNotificationPermission().then((granted) => {
+        if (granted) {
+          toast({
+            title: "🔔 Notificações ativadas",
+            description: "Você receberá alertas 5 minutos antes dos agendamentos.",
+            duration: 5000,
+          });
+        }
+      });
+    }
+  }, []);
 
   const checkReminders = useCallback(() => {
     const now = new Date();
@@ -63,13 +118,21 @@ export function useAppointmentReminder(
       if (diffMinutes > 4 && diffMinutes <= 6 && !notifiedAppointments.current.has(appointment.id)) {
         notifiedAppointments.current.add(appointment.id);
 
+        // Play sound
         playNotificationSound();
 
+        // Show toast
         toast({
           title: "⏰ Lembrete de Agendamento!",
           description: `${appointment.clientName} às ${appointment.time} - em 5 minutos!`,
           duration: 10000,
         });
+
+        // Send browser notification
+        sendBrowserNotification(
+          "⏰ Cliente chegando em 5 minutos!",
+          `${appointment.clientName} às ${appointment.time}`
+        );
       }
     });
   }, [appointments, selectedDate, currentBarberId]);
@@ -84,5 +147,5 @@ export function useAppointmentReminder(
     notifiedAppointments.current.clear();
   }, [selectedDate]);
 
-  return { playNotificationSound };
+  return { playNotificationSound, requestNotificationPermission };
 }

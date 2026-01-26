@@ -56,6 +56,7 @@ export interface FiadoEntry {
   id: string;
   amount: number;
   description: string;
+  serviceIds?: string[];
   createdAt: string;
   paid: boolean;
   paidAt?: string;

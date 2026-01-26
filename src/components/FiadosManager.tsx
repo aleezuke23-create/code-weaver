@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,12 +18,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Fiado, FiadoEntry } from '@/types/barber';
+import { Fiado, FiadoEntry, Service } from '@/types/barber';
+import { ServiceButton } from '@/components/ServiceButton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface FiadosManagerProps {
   fiados: Fiado[];
+  services: Service[];
   onAddFiado: (fiado: Fiado) => void;
   onUpdateFiado: (fiado: Fiado) => void;
   onDeleteFiado: (id: string) => void;
@@ -31,6 +33,7 @@ interface FiadosManagerProps {
 
 export const FiadosManager = ({
   fiados,
+  services,
   onAddFiado,
   onUpdateFiado,
   onDeleteFiado,
@@ -40,13 +43,9 @@ export const FiadosManager = ({
   const [newFiado, setNewFiado] = useState({
     clientName: '',
     clientPhone: '',
-    amount: '',
-    description: '',
+    selectedServices: [] as string[],
   });
-  const [additionalAmount, setAdditionalAmount] = useState({
-    amount: '',
-    description: '',
-  });
+  const [additionalServices, setAdditionalServices] = useState<string[]>([]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -58,14 +57,49 @@ export const FiadosManager = ({
     return format(date, "dd 'de' MMMM", { locale: ptBR });
   };
 
+  const calculateTotal = (serviceIds: string[]) => {
+    return serviceIds.reduce((sum, id) => {
+      const service = services.find(s => s.id === id);
+      return sum + (service?.price || 0);
+    }, 0);
+  };
+
+  const getServiceNames = (serviceIds: string[]) => {
+    return serviceIds
+      .map(id => services.find(s => s.id === id)?.name)
+      .filter(Boolean)
+      .join(', ');
+  };
+
+  const toggleService = (serviceId: string) => {
+    setNewFiado(prev => ({
+      ...prev,
+      selectedServices: prev.selectedServices.includes(serviceId)
+        ? prev.selectedServices.filter(id => id !== serviceId)
+        : [...prev.selectedServices, serviceId]
+    }));
+  };
+
+  const toggleAdditionalService = (serviceId: string) => {
+    setAdditionalServices(prev =>
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
   const handleAddFiado = () => {
-    if (!newFiado.clientName || !newFiado.amount) return;
+    if (!newFiado.clientName || newFiado.selectedServices.length === 0) return;
 
     const now = new Date().toISOString();
+    const total = calculateTotal(newFiado.selectedServices);
+    const description = getServiceNames(newFiado.selectedServices);
+
     const entry: FiadoEntry = {
       id: Date.now().toString(),
-      amount: parseFloat(newFiado.amount),
-      description: newFiado.description || 'Fiado',
+      amount: total,
+      description: description || 'Fiado',
+      serviceIds: newFiado.selectedServices,
       createdAt: now,
       paid: false,
     };
@@ -79,21 +113,25 @@ export const FiadosManager = ({
     };
 
     onAddFiado(fiado);
-    setNewFiado({ clientName: '', clientPhone: '', amount: '', description: '' });
+    setNewFiado({ clientName: '', clientPhone: '', selectedServices: [] });
     setIsOpen(false);
   };
 
   const handleAddMoreToFiado = (fiadoId: string) => {
-    if (!additionalAmount.amount) return;
+    if (additionalServices.length === 0) return;
 
     const fiado = fiados.find(f => f.id === fiadoId);
     if (!fiado) return;
 
     const now = new Date().toISOString();
+    const total = calculateTotal(additionalServices);
+    const description = getServiceNames(additionalServices);
+
     const newEntry: FiadoEntry = {
       id: Date.now().toString(),
-      amount: parseFloat(additionalAmount.amount),
-      description: additionalAmount.description || 'Fiado adicional',
+      amount: total,
+      description: description || 'Fiado adicional',
+      serviceIds: additionalServices,
       createdAt: now,
       paid: false,
     };
@@ -103,7 +141,7 @@ export const FiadosManager = ({
       entries: [...fiado.entries, newEntry],
     });
 
-    setAdditionalAmount({ amount: '', description: '' });
+    setAdditionalServices([]);
     setIsAddingMore(null);
   };
 
@@ -152,6 +190,8 @@ export const FiadosManager = ({
   };
 
   const totalPendingAll = fiados.reduce((sum, f) => sum + getTotalPending(f), 0);
+  const newFiadoTotal = calculateTotal(newFiado.selectedServices);
+  const additionalTotal = calculateTotal(additionalServices);
 
   return (
     <div className="space-y-6">
@@ -170,7 +210,7 @@ export const FiadosManager = ({
               Novo Fiado
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card">
+          <DialogContent className="bg-card max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Adicionar Fiado</DialogTitle>
             </DialogHeader>
@@ -204,35 +244,32 @@ export const FiadosManager = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Valor *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0,00"
-                    value={newFiado.amount}
-                    onChange={(e) => setNewFiado(prev => ({ ...prev, amount: e.target.value }))}
-                    className="pl-10"
-                  />
+                <Label>Serviços *</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {services.map((service) => (
+                    <ServiceButton
+                      key={service.id}
+                      service={service}
+                      selected={newFiado.selectedServices.includes(service.id)}
+                      onToggle={() => toggleService(service.id)}
+                    />
+                  ))}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição (opcional)</Label>
-                <Input
-                  id="description"
-                  placeholder="Ex: Corte + Barba"
-                  value={newFiado.description}
-                  onChange={(e) => setNewFiado(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
+              {newFiadoTotal > 0 && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Total:</span>
+                    <span className="text-lg font-bold text-primary">R$ {newFiadoTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
 
               <Button 
                 onClick={handleAddFiado} 
                 className="w-full"
-                disabled={!newFiado.clientName || !newFiado.amount}
+                disabled={!newFiado.clientName || newFiado.selectedServices.length === 0}
               >
                 Adicionar Fiado
               </Button>
@@ -343,38 +380,30 @@ export const FiadosManager = ({
 
                     {isAddingMore === fiado.id ? (
                       <div className="p-3 border rounded-lg space-y-3 bg-muted/50">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label htmlFor={`add-amount-${fiado.id}`}>Valor *</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                              <Input
-                                id={`add-amount-${fiado.id}`}
-                                type="number"
-                                step="0.01"
-                                placeholder="0,00"
-                                value={additionalAmount.amount}
-                                onChange={(e) => setAdditionalAmount(prev => ({ ...prev, amount: e.target.value }))}
-                                className="pl-10"
-                              />
+                        <Label>Selecione os serviços</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {services.map((service) => (
+                            <ServiceButton
+                              key={service.id}
+                              service={service}
+                              selected={additionalServices.includes(service.id)}
+                              onToggle={() => toggleAdditionalService(service.id)}
+                            />
+                          ))}
+                        </div>
+                        {additionalTotal > 0 && (
+                          <div className="p-2 bg-background rounded">
+                            <div className="flex justify-between items-center text-sm">
+                              <span>Total:</span>
+                              <span className="font-bold">R$ {additionalTotal.toFixed(2)}</span>
                             </div>
                           </div>
-                          <div>
-                            <Label htmlFor={`add-desc-${fiado.id}`}>Descrição</Label>
-                            <Input
-                              id={`add-desc-${fiado.id}`}
-                              placeholder="Ex: Corte"
-                              value={additionalAmount.description}
-                              onChange={(e) => setAdditionalAmount(prev => ({ ...prev, description: e.target.value }))}
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
+                        )}
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
                             onClick={() => handleAddMoreToFiado(fiado.id)}
-                            disabled={!additionalAmount.amount}
+                            disabled={additionalServices.length === 0}
                           >
                             Adicionar
                           </Button>
@@ -383,7 +412,7 @@ export const FiadosManager = ({
                             variant="outline"
                             onClick={() => {
                               setIsAddingMore(null);
-                              setAdditionalAmount({ amount: '', description: '' });
+                              setAdditionalServices([]);
                             }}
                           >
                             Cancelar
