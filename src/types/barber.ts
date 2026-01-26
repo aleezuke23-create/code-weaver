@@ -51,3 +51,20 @@ export interface Bill {
   paid: boolean;
   paidAt?: string;
 }
+
+export interface FiadoEntry {
+  id: string;
+  amount: number;
+  description: string;
+  createdAt: string;
+  paid: boolean;
+  paidAt?: string;
+}
+
+export interface Fiado {
+  id: string;
+  clientName: string;
+  clientPhone?: string;
+  entries: FiadoEntry[];
+  createdAt: string;
+}
