@@ -1,20 +1,25 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Appointment } from '@/types/barber';
 import { toast } from '@/hooks/use-toast';
 
-function playNotificationSound() {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+let alarmInterval: NodeJS.Timeout | null = null;
+let audioContext: AudioContext | null = null;
 
-    const playTone = (frequency: number, startTime: number, duration: number) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+function playAlarmSound() {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+
+    const playBeep = (frequency: number, startTime: number, duration: number) => {
+      const oscillator = audioContext!.createOscillator();
+      const gainNode = audioContext!.createGain();
 
       oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      gainNode.connect(audioContext!.destination);
 
       oscillator.frequency.value = frequency;
-      oscillator.type = 'sine';
+      oscillator.type = 'square';
 
       gainNode.gain.setValueAtTime(0.3, startTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
@@ -24,12 +29,30 @@ function playNotificationSound() {
     };
 
     const now = audioContext.currentTime;
-    playTone(523.25, now, 0.2);
-    playTone(659.25, now + 0.2, 0.2);
-    playTone(783.99, now + 0.4, 0.3);
+    // Alarm pattern - repeated beeps
+    playBeep(880, now, 0.15);
+    playBeep(880, now + 0.2, 0.15);
+    playBeep(880, now + 0.4, 0.15);
+    playBeep(1100, now + 0.6, 0.3);
 
   } catch (error) {
-    console.error('Erro ao tocar som de notificação:', error);
+    console.error('Erro ao tocar som de alarme:', error);
+  }
+}
+
+export function startContinuousAlarm() {
+  if (alarmInterval) return;
+  
+  playAlarmSound();
+  alarmInterval = setInterval(() => {
+    playAlarmSound();
+  }, 1500);
+}
+
+export function stopContinuousAlarm() {
+  if (alarmInterval) {
+    clearInterval(alarmInterval);
+    alarmInterval = null;
   }
 }
 
@@ -66,8 +89,7 @@ function sendBrowserNotification(title: string, body: string) {
       notification.close();
     };
 
-    // Auto close after 30 seconds
-    setTimeout(() => notification.close(), 30000);
+    setTimeout(() => notification.close(), 60000);
   }
 }
 
@@ -78,8 +100,8 @@ export function useAppointmentReminder(
 ) {
   const notifiedAppointments = useRef<Set<string>>(new Set());
   const permissionRequested = useRef(false);
+  const [activeAlarmAppointment, setActiveAlarmAppointment] = useState<Appointment | null>(null);
 
-  // Request permission on mount
   useEffect(() => {
     if (!permissionRequested.current) {
       permissionRequested.current = true;
@@ -93,6 +115,11 @@ export function useAppointmentReminder(
         }
       });
     }
+  }, []);
+
+  const dismissAlarm = useCallback(() => {
+    stopContinuousAlarm();
+    setActiveAlarmAppointment(null);
   }, []);
 
   const checkReminders = useCallback(() => {
@@ -118,14 +145,15 @@ export function useAppointmentReminder(
       if (diffMinutes > 4 && diffMinutes <= 6 && !notifiedAppointments.current.has(appointment.id)) {
         notifiedAppointments.current.add(appointment.id);
 
-        // Play sound
-        playNotificationSound();
+        // Start continuous alarm
+        startContinuousAlarm();
+        setActiveAlarmAppointment(appointment);
 
         // Show toast
         toast({
-          title: "⏰ Lembrete de Agendamento!",
+          title: "⏰ CLIENTE CHEGANDO!",
           description: `${appointment.clientName} às ${appointment.time} - em 5 minutos!`,
-          duration: 10000,
+          duration: 0, // Persistent until dismissed
         });
 
         // Send browser notification
@@ -147,5 +175,18 @@ export function useAppointmentReminder(
     notifiedAppointments.current.clear();
   }, [selectedDate]);
 
-  return { playNotificationSound, requestNotificationPermission };
+  // Cleanup alarm on unmount
+  useEffect(() => {
+    return () => {
+      stopContinuousAlarm();
+    };
+  }, []);
+
+  return { 
+    activeAlarmAppointment, 
+    dismissAlarm,
+    startContinuousAlarm,
+    stopContinuousAlarm,
+    requestNotificationPermission 
+  };
 }

@@ -13,11 +13,12 @@ import { BarbersManager } from '@/components/BarbersManager';
 import { DateSelector } from '@/components/DateSelector';
 import { MonthlyAnalysis } from '@/components/MonthlyAnalysis';
 import { FiadosManager } from '@/components/FiadosManager';
+import { MensalidadeManager } from '@/components/MensalidadeManager';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAppointmentReminder } from '@/hooks/useAppointmentReminder';
 import { defaultServices, defaultBarbers } from '@/data/initialData';
-import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado } from '@/types/barber';
-import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard } from 'lucide-react';
+import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado, MonthlyPlan } from '@/types/barber';
+import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays } from 'lucide-react';
 
 const Index = () => {
   const today = new Date().toISOString().split('T')[0];
@@ -30,10 +31,11 @@ const Index = () => {
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('barber-transactions', []);
   const [bills, setBills] = useLocalStorage<Bill[]>('barber-bills', []);
   const [fiados, setFiados] = useLocalStorage<Fiado[]>('barber-fiados', []);
+  const [monthlyPlans, setMonthlyPlans] = useLocalStorage<MonthlyPlan[]>('barber-monthly-plans', []);
 
   const [currentBarberId, setCurrentBarberId] = useState(barbers[0]?.id || '1');
 
-  useAppointmentReminder(appointments, selectedDate, currentBarberId);
+  const { activeAlarmAppointment, dismissAlarm } = useAppointmentReminder(appointments, selectedDate, currentBarberId);
 
   const handleAddCut = (cut: CutRecord) => {
     setCuts(prev => [...prev, cut]);
@@ -99,6 +101,18 @@ const Index = () => {
     setFiados(prev => prev.filter(f => f.id !== id));
   };
 
+  const handleAddMonthlyPlan = (plan: MonthlyPlan) => {
+    setMonthlyPlans(prev => [...prev, plan]);
+  };
+
+  const handleUpdateMonthlyPlan = (plan: MonthlyPlan) => {
+    setMonthlyPlans(prev => prev.map(p => p.id === plan.id ? plan : p));
+  };
+
+  const handleDeleteMonthlyPlan = (id: string) => {
+    setMonthlyPlans(prev => prev.filter(p => p.id !== id));
+  };
+
   const handleAddService = (service: Service) => {
     setServices(prev => [...prev, service]);
   };
@@ -161,7 +175,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl mx-auto bg-muted">
+          <TabsList className="grid grid-cols-8 w-full max-w-5xl mx-auto bg-muted">
             <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-card">
               <Scissors className="w-4 h-4" />
               <span className="hidden sm:inline">Cortes</span>
@@ -173,6 +187,10 @@ const Index = () => {
             <TabsTrigger value="fiados" className="gap-2 data-[state=active]:bg-card">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Fiados</span>
+            </TabsTrigger>
+            <TabsTrigger value="mensalidade" className="gap-2 data-[state=active]:bg-card">
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Mensal</span>
             </TabsTrigger>
             <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-card">
               <BarChart3 className="w-4 h-4" />
@@ -227,6 +245,8 @@ const Index = () => {
               currentBarberId={currentBarberId}
               onUpdateStatus={handleUpdateAppointmentStatus}
               onDelete={handleDeleteAppointment}
+              activeAlarmAppointment={activeAlarmAppointment}
+              onDismissAlarm={dismissAlarm}
             />
           </TabsContent>
 
@@ -240,11 +260,22 @@ const Index = () => {
             />
           </TabsContent>
 
+          <TabsContent value="mensalidade">
+            <MensalidadeManager
+              plans={monthlyPlans}
+              services={services}
+              onAddPlan={handleAddMonthlyPlan}
+              onUpdatePlan={handleUpdateMonthlyPlan}
+              onDeletePlan={handleDeleteMonthlyPlan}
+            />
+          </TabsContent>
+
           <TabsContent value="analysis">
             <MonthlyAnalysis
               cuts={cuts}
               services={services}
               transactions={transactions}
+              appointments={appointments}
             />
           </TabsContent>
 
