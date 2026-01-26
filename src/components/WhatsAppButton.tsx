@@ -6,9 +6,10 @@ interface WhatsAppButtonProps {
   clientName: string;
   appointmentTime: string;
   className?: string;
+  onClick?: () => void;
 }
 
-export function WhatsAppButton({ phone, clientName, appointmentTime, className }: WhatsAppButtonProps) {
+export function WhatsAppButton({ phone, clientName, appointmentTime, className, onClick }: WhatsAppButtonProps) {
   const handleClick = () => {
     const formattedPhone = phone.replace(/\D/g, '');
     const phoneWithCountry = formattedPhone.startsWith('55')
@@ -20,6 +21,9 @@ export function WhatsAppButton({ phone, clientName, appointmentTime, className }
 
     const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
+    
+    // Call additional onClick callback if provided
+    onClick?.();
   };
 
   return (

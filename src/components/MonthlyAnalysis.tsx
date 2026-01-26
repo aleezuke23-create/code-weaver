@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CutRecord, Service, Transaction } from '@/types/barber';
-import { TrendingUp, Scissors, DollarSign, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { CutRecord, Service, Transaction, Appointment } from '@/types/barber';
+import { TrendingUp, Scissors, DollarSign, Calendar, Users, Check, X, UserX, Clock } from 'lucide-react';
 
 interface MonthlyAnalysisProps {
   cuts: CutRecord[];
   services: Service[];
   transactions: Transaction[];
+  appointments: Appointment[];
 }
 
-export function MonthlyAnalysis({ cuts, services, transactions }: MonthlyAnalysisProps) {
+export function MonthlyAnalysis({ cuts, services, transactions, appointments }: MonthlyAnalysisProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -30,6 +33,11 @@ export function MonthlyAnalysis({ cuts, services, transactions }: MonthlyAnalysi
   const monthTransactions = transactions.filter(t => {
     const tDate = new Date(t.date);
     return tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear;
+  });
+
+  const monthAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.date);
+    return aptDate.getMonth() === selectedMonth && aptDate.getFullYear() === selectedYear;
   });
 
   const totalRevenue = monthCuts.reduce((sum, cut) => sum + cut.total, 0);
@@ -53,6 +61,53 @@ export function MonthlyAnalysis({ cuts, services, transactions }: MonthlyAnalysi
 
   const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const maxDayRevenue = Math.max(...Object.values(dayRevenue), 1);
+
+  // Appointment statistics
+  const completedCount = monthAppointments.filter(a => a.status === 'completed').length;
+  const noShowCount = monthAppointments.filter(a => a.status === 'no_show').length;
+  const cancelledCount = monthAppointments.filter(a => a.status === 'cancelled').length;
+  const scheduledCount = monthAppointments.filter(a => a.status === 'scheduled').length;
+
+  const getStatusColor = (status: Appointment['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'no_show':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-primary/10 text-primary';
+    }
+  };
+
+  const getStatusLabel = (status: Appointment['status']) => {
+    switch (status) {
+      case 'scheduled':
+        return 'Agendado';
+      case 'completed':
+        return 'Veio';
+      case 'cancelled':
+        return 'Cancelado';
+      case 'no_show':
+        return 'Não Veio';
+      default:
+        return status;
+    }
+  };
+
+  const getStatusIcon = (status: Appointment['status']) => {
+    switch (status) {
+      case 'completed':
+        return <Check className="w-3 h-3" />;
+      case 'cancelled':
+        return <X className="w-3 h-3" />;
+      case 'no_show':
+        return <UserX className="w-3 h-3" />;
+      default:
+        return <Clock className="w-3 h-3" />;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -143,6 +198,85 @@ export function MonthlyAnalysis({ cuts, services, transactions }: MonthlyAnalysi
           </CardContent>
         </Card>
       </div>
+
+      {/* Appointment Statistics */}
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-card-foreground flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Estatísticas de Agendamentos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center gap-2 text-green-700 text-sm">
+                <Check className="w-4 h-4" />
+                Compareceram
+              </div>
+              <p className="text-2xl font-bold text-green-700 mt-1">{completedCount}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
+              <div className="flex items-center gap-2 text-orange-700 text-sm">
+                <UserX className="w-4 h-4" />
+                Não Vieram
+              </div>
+              <p className="text-2xl font-bold text-orange-700 mt-1">{noShowCount}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+              <div className="flex items-center gap-2 text-red-700 text-sm">
+                <X className="w-4 h-4" />
+                Cancelados
+              </div>
+              <p className="text-2xl font-bold text-red-700 mt-1">{cancelledCount}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-center gap-2 text-primary text-sm">
+                <Clock className="w-4 h-4" />
+                Pendentes
+              </div>
+              <p className="text-2xl font-bold text-primary mt-1">{scheduledCount}</p>
+            </div>
+          </div>
+
+          {/* List of appointments with names and status */}
+          {monthAppointments.length > 0 && (
+            <div>
+              <h4 className="font-medium text-card-foreground mb-3">Detalhamento dos Agendamentos</h4>
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-2">
+                  {monthAppointments
+                    .sort((a, b) => {
+                      const dateComparison = a.date.localeCompare(b.date);
+                      if (dateComparison !== 0) return dateComparison;
+                      return a.time.localeCompare(b.time);
+                    })
+                    .map(apt => (
+                      <div
+                        key={apt.id}
+                        className="flex items-center justify-between p-2 rounded-lg bg-accent border border-border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground min-w-[80px]">
+                            {new Date(apt.date + 'T12:00:00').toLocaleDateString('pt-BR', { 
+                              day: '2-digit', 
+                              month: '2-digit' 
+                            })} {apt.time}
+                          </span>
+                          <span className="font-medium text-card-foreground">{apt.clientName}</span>
+                        </div>
+                        <Badge className={`${getStatusColor(apt.status)} flex items-center gap-1`}>
+                          {getStatusIcon(apt.status)}
+                          {getStatusLabel(apt.status)}
+                        </Badge>
+                      </div>
+                    ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-border bg-card">
         <CardHeader>

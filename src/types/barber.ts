@@ -19,8 +19,20 @@ export interface Appointment {
   date: string;
   time: string;
   services: string[];
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
+}
+
+export interface MonthlyPlan {
+  id: string;
+  clientName: string;
+  clientPhone?: string;
+  monthlyPrice: number;
+  discountPercentage?: number;
+  allowedDays: number[];
+  attendedDays: { date: string; serviceIds: string[] }[];
+  createdAt: string;
+  active: boolean;
 }
 
 export interface CutRecord {
