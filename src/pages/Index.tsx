@@ -12,11 +12,12 @@ import { ServicesManager } from '@/components/ServicesManager';
 import { BarbersManager } from '@/components/BarbersManager';
 import { DateSelector } from '@/components/DateSelector';
 import { MonthlyAnalysis } from '@/components/MonthlyAnalysis';
+import { FiadosManager } from '@/components/FiadosManager';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAppointmentReminder } from '@/hooks/useAppointmentReminder';
 import { defaultServices, defaultBarbers } from '@/data/initialData';
-import { Service, Barber, Appointment, CutRecord, Transaction, Bill } from '@/types/barber';
-import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3 } from 'lucide-react';
+import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado } from '@/types/barber';
+import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard } from 'lucide-react';
 
 const Index = () => {
   const today = new Date().toISOString().split('T')[0];
@@ -28,6 +29,7 @@ const Index = () => {
   const [cuts, setCuts] = useLocalStorage<CutRecord[]>('barber-cuts', []);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('barber-transactions', []);
   const [bills, setBills] = useLocalStorage<Bill[]>('barber-bills', []);
+  const [fiados, setFiados] = useLocalStorage<Fiado[]>('barber-fiados', []);
 
   const [currentBarberId, setCurrentBarberId] = useState(barbers[0]?.id || '1');
 
@@ -83,6 +85,18 @@ const Index = () => {
 
   const handleDeleteBill = (id: string) => {
     setBills(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleAddFiado = (fiado: Fiado) => {
+    setFiados(prev => [...prev, fiado]);
+  };
+
+  const handleUpdateFiado = (fiado: Fiado) => {
+    setFiados(prev => prev.map(f => f.id === fiado.id ? fiado : f));
+  };
+
+  const handleDeleteFiado = (id: string) => {
+    setFiados(prev => prev.filter(f => f.id !== id));
   };
 
   const handleAddService = (service: Service) => {
@@ -147,7 +161,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl mx-auto bg-muted">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl mx-auto bg-muted">
             <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-card">
               <Scissors className="w-4 h-4" />
               <span className="hidden sm:inline">Cortes</span>
@@ -155,6 +169,10 @@ const Index = () => {
             <TabsTrigger value="appointments" className="gap-2 data-[state=active]:bg-card">
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Agenda</span>
+            </TabsTrigger>
+            <TabsTrigger value="fiados" className="gap-2 data-[state=active]:bg-card">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Fiados</span>
             </TabsTrigger>
             <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-card">
               <BarChart3 className="w-4 h-4" />
@@ -209,6 +227,15 @@ const Index = () => {
               currentBarberId={currentBarberId}
               onUpdateStatus={handleUpdateAppointmentStatus}
               onDelete={handleDeleteAppointment}
+            />
+          </TabsContent>
+
+          <TabsContent value="fiados">
+            <FiadosManager
+              fiados={fiados}
+              onAddFiado={handleAddFiado}
+              onUpdateFiado={handleUpdateFiado}
+              onDeleteFiado={handleDeleteFiado}
             />
           </TabsContent>
 
