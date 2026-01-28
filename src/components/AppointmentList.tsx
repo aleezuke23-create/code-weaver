@@ -126,14 +126,14 @@ export function AppointmentList({
               {scheduledToday
                 .sort((a, b) => a.time.localeCompare(b.time))
                 .map(apt => (
-                  <Badge
-                    key={apt.id}
-                    variant="secondary"
-                    className="px-3 py-1.5 text-sm bg-card border border-border"
-                  >
-                    <Clock className="w-3 h-3 mr-1" />
-                    {apt.time} - {apt.clientName}
-                  </Badge>
+                    <Badge
+                      key={apt.id}
+                      variant="secondary"
+                      className="px-3 py-1.5 text-sm bg-card text-card-foreground border border-border"
+                    >
+                      <Clock className="w-3 h-3 mr-1" />
+                      {apt.time} - {apt.clientName}
+                    </Badge>
                 ))}
             </div>
           </CardContent>
