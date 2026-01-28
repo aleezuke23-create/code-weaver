@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { QuickCutForm } from '@/components/QuickCutForm';
 import { DashboardStats } from '@/components/DashboardStats';
 import { CutHistory } from '@/components/CutHistory';
@@ -14,15 +16,32 @@ import { DateSelector } from '@/components/DateSelector';
 import { MonthlyAnalysis } from '@/components/MonthlyAnalysis';
 import { FiadosManager } from '@/components/FiadosManager';
 import { MensalidadeManager } from '@/components/MensalidadeManager';
+import { SettingsReset } from '@/components/SettingsReset';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAppointmentReminder } from '@/hooks/useAppointmentReminder';
 import { defaultServices, defaultBarbers } from '@/data/initialData';
 import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado, MonthlyPlan } from '@/types/barber';
-import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays } from 'lucide-react';
+import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays, LogIn } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 const Index = () => {
+  const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [services, setServices] = useLocalStorage<Service[]>('barber-services', defaultServices);
   const [barbers, setBarbers] = useLocalStorage<Barber[]>('barber-barbers', defaultBarbers);
@@ -137,6 +156,10 @@ const Index = () => {
     setBarbers(prev => prev.filter(b => b.id !== id));
   };
 
+  const handleResetData = () => {
+    // This triggers a page reload via SettingsReset component
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -166,6 +189,13 @@ const Index = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              )}
+
+              {!user && (
+                <Button variant="outline" onClick={() => navigate('/auth')} className="gap-2">
+                  <LogIn className="w-4 h-4" />
+                  Entrar
+                </Button>
               )}
             </div>
           </div>
@@ -310,6 +340,7 @@ const Index = () => {
               onUpdateBarber={handleUpdateBarber}
               onDeleteBarber={handleDeleteBarber}
             />
+            <SettingsReset user={user} onResetData={handleResetData} />
           </TabsContent>
         </Tabs>
       </main>
