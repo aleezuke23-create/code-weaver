@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,9 +19,10 @@ import { MensalidadeManager } from '@/components/MensalidadeManager';
 import { SettingsReset } from '@/components/SettingsReset';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAppointmentReminder } from '@/hooks/useAppointmentReminder';
+import { useCloudSync } from '@/hooks/useCloudSync';
 import { defaultServices, defaultBarbers } from '@/data/initialData';
 import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado, MonthlyPlan } from '@/types/barber';
-import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays, LogIn } from 'lucide-react';
+import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays, LogIn, Cloud } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 
@@ -53,6 +54,32 @@ const Index = () => {
   const [monthlyPlans, setMonthlyPlans] = useLocalStorage<MonthlyPlan[]>('barber-monthly-plans', []);
 
   const [currentBarberId, setCurrentBarberId] = useState(barbers[0]?.id || '1');
+
+  // Memoize data for cloud sync
+  const cloudData = useMemo(() => ({
+    services,
+    barbers,
+    appointments,
+    cuts,
+    transactions,
+    bills,
+    fiados,
+    monthlyPlans,
+  }), [services, barbers, appointments, cuts, transactions, bills, fiados, monthlyPlans]);
+
+  // Cloud sync hook
+  const { saveToCloud, deleteCloudData } = useCloudSync({
+    user,
+    data: cloudData,
+    setServices,
+    setBarbers,
+    setAppointments,
+    setCuts,
+    setTransactions,
+    setBills,
+    setFiados,
+    setMonthlyPlans,
+  });
 
   const { activeAlarmAppointment, dismissAlarm } = useAppointmentReminder(appointments, selectedDate, currentBarberId);
 
@@ -156,8 +183,9 @@ const Index = () => {
     setBarbers(prev => prev.filter(b => b.id !== id));
   };
 
-  const handleResetData = () => {
-    // This triggers a page reload via SettingsReset component
+  const handleResetData = async () => {
+    // Delete cloud data when resetting
+    await deleteCloudData();
   };
 
   return (
@@ -191,7 +219,12 @@ const Index = () => {
                 </Select>
               )}
 
-              {!user && (
+              {user ? (
+                <Button variant="outline" onClick={() => saveToCloud()} className="gap-2">
+                  <Cloud className="w-4 h-4" />
+                  Sincronizar
+                </Button>
+              ) : (
                 <Button variant="outline" onClick={() => navigate('/auth')} className="gap-2">
                   <LogIn className="w-4 h-4" />
                   Entrar

@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_data: {
+        Row: {
+          appointments: Json | null
+          barbers: Json | null
+          bills: Json | null
+          created_at: string
+          cuts: Json | null
+          fiados: Json | null
+          id: string
+          last_synced_at: string | null
+          monthly_plans: Json | null
+          services: Json | null
+          transactions: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointments?: Json | null
+          barbers?: Json | null
+          bills?: Json | null
+          created_at?: string
+          cuts?: Json | null
+          fiados?: Json | null
+          id?: string
+          last_synced_at?: string | null
+          monthly_plans?: Json | null
+          services?: Json | null
+          transactions?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointments?: Json | null
+          barbers?: Json | null
+          bills?: Json | null
+          created_at?: string
+          cuts?: Json | null
+          fiados?: Json | null
+          id?: string
+          last_synced_at?: string | null
+          monthly_plans?: Json | null
+          services?: Json | null
+          transactions?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
