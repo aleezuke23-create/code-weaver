@@ -2,20 +2,17 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { AlertTriangle, Trash2, LogOut } from 'lucide-react';
+import { AlertTriangle, Trash2, Smartphone } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { User } from '@supabase/supabase-js';
+import { getDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
 
 interface SettingsResetProps {
-  user: User | null;
   onResetData: () => void;
 }
 
-export function SettingsReset({ user, onResetData }: SettingsResetProps) {
+export function SettingsReset({ onResetData }: SettingsResetProps) {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+  const deviceId = getDeviceFingerprint();
 
   const handleReset = () => {
     // Clear all localStorage data
@@ -40,12 +37,6 @@ export function SettingsReset({ user, onResetData }: SettingsResetProps) {
     window.location.reload();
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({ title: "Você saiu da conta" });
-    navigate('/auth');
-  };
-
   return (
     <Card className="border-border bg-card">
       <CardHeader>
@@ -58,18 +49,15 @@ export function SettingsReset({ user, onResetData }: SettingsResetProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {user && (
-          <div className="flex items-center justify-between p-4 bg-accent rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-accent rounded-lg">
+          <div className="flex items-center gap-3">
+            <Smartphone className="w-5 h-5 text-primary" />
             <div>
-              <p className="font-medium text-card-foreground">Conta conectada</p>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <p className="font-medium text-card-foreground">Dispositivo atual</p>
+              <p className="text-xs text-muted-foreground">ID: {deviceId}</p>
             </div>
-            <Button variant="outline" onClick={handleLogout} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              Sair
-            </Button>
           </div>
-        )}
+        </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>

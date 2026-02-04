@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { QuickCutForm } from '@/components/QuickCutForm';
 import { DashboardStats } from '@/components/DashboardStats';
 import { CutHistory } from '@/components/CutHistory';
@@ -19,67 +17,29 @@ import { MensalidadeManager } from '@/components/MensalidadeManager';
 import { SettingsReset } from '@/components/SettingsReset';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAppointmentReminder } from '@/hooks/useAppointmentReminder';
-import { useCloudSync } from '@/hooks/useCloudSync';
+import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
 import { defaultServices, defaultBarbers } from '@/data/initialData';
 import { Service, Barber, Appointment, CutRecord, Transaction, Bill, Fiado, MonthlyPlan } from '@/types/barber';
-import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays, LogIn, Cloud } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { Scissors, Calendar, Wallet, Receipt, Settings, BarChart3, CreditCard, CalendarDays, Smartphone } from 'lucide-react';
 
 const Index = () => {
-  const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
-  const [user, setUser] = useState<User | null>(null);
+  const deviceId = useDeviceFingerprint();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const [services, setServices] = useLocalStorage<Service[]>('barber-services', defaultServices);
-  const [barbers, setBarbers] = useLocalStorage<Barber[]>('barber-barbers', defaultBarbers);
-  const [appointments, setAppointments] = useLocalStorage<Appointment[]>('barber-appointments', []);
-  const [cuts, setCuts] = useLocalStorage<CutRecord[]>('barber-cuts', []);
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('barber-transactions', []);
-  const [bills, setBills] = useLocalStorage<Bill[]>('barber-bills', []);
-  const [fiados, setFiados] = useLocalStorage<Fiado[]>('barber-fiados', []);
-  const [monthlyPlans, setMonthlyPlans] = useLocalStorage<MonthlyPlan[]>('barber-monthly-plans', []);
+  // Use device-specific storage keys
+  const storagePrefix = deviceId ? `barber-${deviceId}` : 'barber';
+  
+  const [services, setServices] = useLocalStorage<Service[]>(`${storagePrefix}-services`, defaultServices);
+  const [barbers, setBarbers] = useLocalStorage<Barber[]>(`${storagePrefix}-barbers`, defaultBarbers);
+  const [appointments, setAppointments] = useLocalStorage<Appointment[]>(`${storagePrefix}-appointments`, []);
+  const [cuts, setCuts] = useLocalStorage<CutRecord[]>(`${storagePrefix}-cuts`, []);
+  const [transactions, setTransactions] = useLocalStorage<Transaction[]>(`${storagePrefix}-transactions`, []);
+  const [bills, setBills] = useLocalStorage<Bill[]>(`${storagePrefix}-bills`, []);
+  const [fiados, setFiados] = useLocalStorage<Fiado[]>(`${storagePrefix}-fiados`, []);
+  const [monthlyPlans, setMonthlyPlans] = useLocalStorage<MonthlyPlan[]>(`${storagePrefix}-monthly-plans`, []);
 
   const [currentBarberId, setCurrentBarberId] = useState(barbers[0]?.id || '1');
-
-  // Memoize data for cloud sync
-  const cloudData = useMemo(() => ({
-    services,
-    barbers,
-    appointments,
-    cuts,
-    transactions,
-    bills,
-    fiados,
-    monthlyPlans,
-  }), [services, barbers, appointments, cuts, transactions, bills, fiados, monthlyPlans]);
-
-  // Cloud sync hook
-  const { saveToCloud, deleteCloudData } = useCloudSync({
-    user,
-    data: cloudData,
-    setServices,
-    setBarbers,
-    setAppointments,
-    setCuts,
-    setTransactions,
-    setBills,
-    setFiados,
-    setMonthlyPlans,
-  });
 
   const { activeAlarmAppointment, dismissAlarm } = useAppointmentReminder(appointments, selectedDate, currentBarberId);
 
@@ -183,9 +143,8 @@ const Index = () => {
     setBarbers(prev => prev.filter(b => b.id !== id));
   };
 
-  const handleResetData = async () => {
-    // Delete cloud data when resetting
-    await deleteCloudData();
+  const handleResetData = () => {
+    // Data is cleared in SettingsReset component
   };
 
   return (
@@ -219,17 +178,10 @@ const Index = () => {
                 </Select>
               )}
 
-              {user ? (
-                <Button variant="outline" onClick={() => saveToCloud()} className="gap-2">
-                  <Cloud className="w-4 h-4" />
-                  Sincronizar
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={() => navigate('/auth')} className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  Entrar
-                </Button>
-              )}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-accent px-3 py-2 rounded-lg">
+                <Smartphone className="w-4 h-4" />
+                <span className="hidden sm:inline">ID: {deviceId.slice(0, 12)}...</span>
+              </div>
             </div>
           </div>
         </div>
@@ -373,7 +325,7 @@ const Index = () => {
               onUpdateBarber={handleUpdateBarber}
               onDeleteBarber={handleDeleteBarber}
             />
-            <SettingsReset user={user} onResetData={handleResetData} />
+            <SettingsReset onResetData={handleResetData} />
           </TabsContent>
         </Tabs>
       </main>
